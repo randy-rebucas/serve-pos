@@ -1,20 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
-import SafeAreaView from '../../components/ui/SafeAreaView';
+import React, { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { Colors, Typography, Spacing } from '../../constants/Theme';
-import { Ionicons } from '@expo/vector-icons';
+import SafeAreaView from '../../components/ui/SafeAreaView';
+import { Colors, Spacing, Typography } from '../../constants/Theme';
 import { useAuth } from '../../hooks/useAuth';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { loginSchema, loginOtpSchema, type LoginFormData, type LoginOtpFormData } from '../../lib/validation/schemas';
+import { emailPasswordLoginSchema, loginOtpSchema, loginSchema, type EmailPasswordLoginFormData, type LoginFormData, type LoginOtpFormData } from '../../lib/validation/schemas';
 
 export default function LoginScreen() {
-  const { sendLoginOtp, verifyLoginOtp, isLoading, error, clearError, otpSent, resetOtpSent } = useAuth();
+  const { sendLoginOtp, verifyLoginOtp, loginWithEmail, enterGuestMode, isLoading, error, clearError, otpSent, resetOtpSent } = useAuth();
   const [countdown, setCountdown] = useState(0);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -29,6 +30,15 @@ export default function LoginScreen() {
     defaultValues: {
       phone: '',
       otp: '',
+      tenantSlug: 'default',
+    },
+  });
+
+  const emailPasswordForm = useForm<EmailPasswordLoginFormData>({
+    resolver: zodResolver(emailPasswordLoginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
       tenantSlug: 'default',
     },
   });
@@ -77,6 +87,15 @@ export default function LoginScreen() {
     }
   };
 
+  const onEmailPasswordLogin = async (data: EmailPasswordLoginFormData) => {
+    clearError();
+    try {
+      await loginWithEmail(data);
+    } catch (err) {
+      console.error('Email/password login error:', err);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -94,6 +113,34 @@ export default function LoginScreen() {
           <Text style={styles.title}>Welcome Back!</Text>
           <Text style={styles.subtitle}>Sign in to your account</Text>
 
+          {/* Auth Method Toggle */}
+          <View style={styles.authMethodToggle}>
+            <TouchableOpacity
+              style={[styles.toggleButton, authMethod === 'phone' && styles.toggleButtonActive]}
+              onPress={() => {
+                setAuthMethod('phone');
+                clearError();
+                resetOtpSent();
+              }}
+            >
+              <Text style={[styles.toggleText, authMethod === 'phone' && styles.toggleTextActive]}>
+                Phone
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleButton, authMethod === 'email' && styles.toggleButtonActive]}
+              onPress={() => {
+                setAuthMethod('email');
+                clearError();
+                resetOtpSent();
+              }}
+            >
+              <Text style={[styles.toggleText, authMethod === 'email' && styles.toggleTextActive]}>
+                Email
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {error && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
@@ -101,7 +148,63 @@ export default function LoginScreen() {
           )}
 
           <View style={styles.form}>
-            {!otpSent ? (
+            {authMethod === 'email' ? (
+              <>
+                <Controller
+                  control={emailPasswordForm.control}
+                  name="email"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      label="Email"
+                      placeholder="john@example.com"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      error={emailPasswordForm.formState.errors.email?.message}
+                    />
+                  )}
+                />
+
+                <Controller
+                  control={emailPasswordForm.control}
+                  name="password"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      label="Password"
+                      placeholder="Enter your password"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      secureTextEntry
+                      error={emailPasswordForm.formState.errors.password?.message}
+                    />
+                  )}
+                />
+
+                <Button
+                  title="Sign In"
+                  onPress={emailPasswordForm.handleSubmit(onEmailPasswordLogin)}
+                  variant="primary"
+                  style={styles.signInButton}
+                  loading={isLoading}
+                />
+
+                <View style={styles.signUpContainer}>
+                  <Text style={styles.signUpText}>Don&apos;t have an account? </Text>
+                  <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+                    <Text style={styles.signUpLink}>Sign Up</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Button
+                  title="Continue as Guest"
+                  onPress={enterGuestMode}
+                  variant="secondary"
+                />
+              </>
+            ) : !otpSent ? (
               <>
                 <Controller
                   control={loginForm.control}
@@ -137,7 +240,7 @@ export default function LoginScreen() {
 
                 <Button
                   title="Continue as Guest"
-                  onPress={() => router.push('/(tabs)')}
+                  onPress={enterGuestMode}
                   variant="secondary"
                 />
               </>
@@ -335,6 +438,32 @@ const styles = StyleSheet.create({
   signUpLink: {
     ...Typography.body,
     color: Colors.primary,
+    fontWeight: '600',
+  },
+  authMethodToggle: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: Spacing.lg,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  toggleText: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  toggleTextActive: {
+    color: Colors.surface,
     fontWeight: '600',
   },
 });

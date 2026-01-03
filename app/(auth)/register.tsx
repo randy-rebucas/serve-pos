@@ -9,12 +9,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { registerSchema, registerOtpSchema, type RegisterFormData, type RegisterOtpFormData } from '../../lib/validation/schemas';
+import { registerSchema, registerOtpSchema, emailPasswordRegisterSchema, type RegisterFormData, type RegisterOtpFormData, type EmailPasswordRegisterFormData } from '../../lib/validation/schemas';
 
 export default function RegisterScreen() {
-  const { register: registerUser, verifyRegisterOtp, isLoading, error, clearError, otpSent, resetOtpSent } = useAuth();
+  const { register: registerUser, verifyRegisterOtp, registerWithEmail, isLoading, error, clearError, otpSent, resetOtpSent } = useAuth();
   const [countdown, setCountdown] = useState(0);
   const [registrationData, setRegistrationData] = useState<RegisterFormData | null>(null);
+  const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
 
   const registerForm = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -37,6 +38,20 @@ export default function RegisterScreen() {
       otp: '',
       email: '',
       tenantSlug: 'default',
+    },
+  });
+
+  const emailPasswordForm = useForm<EmailPasswordRegisterFormData>({
+    resolver: zodResolver(emailPasswordRegisterSchema),
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      phone: '',
+      tenantSlug: 'default',
+      agreeToTerms: false,
     },
   });
 
@@ -91,6 +106,16 @@ export default function RegisterScreen() {
     }
   };
 
+  const onEmailPasswordRegister = async (data: EmailPasswordRegisterFormData) => {
+    clearError();
+    try {
+      const { agreeToTerms, confirmPassword, ...registerData } = data;
+      await registerWithEmail(registerData);
+    } catch (err) {
+      console.error('Email/password registration error:', err);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -107,6 +132,34 @@ export default function RegisterScreen() {
         <View style={styles.content}>
           <Text style={styles.title}>Create Account</Text>
 
+          {/* Auth Method Toggle */}
+          <View style={styles.authMethodToggle}>
+            <TouchableOpacity
+              style={[styles.toggleButton, authMethod === 'phone' && styles.toggleButtonActive]}
+              onPress={() => {
+                setAuthMethod('phone');
+                clearError();
+                resetOtpSent();
+              }}
+            >
+              <Text style={[styles.toggleText, authMethod === 'phone' && styles.toggleTextActive]}>
+                Phone
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleButton, authMethod === 'email' && styles.toggleButtonActive]}
+              onPress={() => {
+                setAuthMethod('email');
+                clearError();
+                resetOtpSent();
+              }}
+            >
+              <Text style={[styles.toggleText, authMethod === 'email' && styles.toggleTextActive]}>
+                Email
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {error && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
@@ -114,7 +167,140 @@ export default function RegisterScreen() {
           )}
 
           <View style={styles.form}>
-            {!otpSent ? (
+            {authMethod === 'email' ? (
+              <>
+                <Controller
+                  control={emailPasswordForm.control}
+                  name="firstName"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      label="First Name"
+                      placeholder="John"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      error={emailPasswordForm.formState.errors.firstName?.message}
+                    />
+                  )}
+                />
+
+                <Controller
+                  control={emailPasswordForm.control}
+                  name="lastName"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      label="Last Name"
+                      placeholder="Doe"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      error={emailPasswordForm.formState.errors.lastName?.message}
+                    />
+                  )}
+                />
+
+                <Controller
+                  control={emailPasswordForm.control}
+                  name="email"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      label="Email"
+                      placeholder="john@example.com"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      error={emailPasswordForm.formState.errors.email?.message}
+                    />
+                  )}
+                />
+
+                <Controller
+                  control={emailPasswordForm.control}
+                  name="phone"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      label="Phone Number (Optional)"
+                      placeholder="+1 (555) 123-4567"
+                      value={value || ''}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      keyboardType="phone-pad"
+                      error={emailPasswordForm.formState.errors.phone?.message}
+                    />
+                  )}
+                />
+
+                <Controller
+                  control={emailPasswordForm.control}
+                  name="password"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      label="Password"
+                      placeholder="At least 6 characters"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      secureTextEntry
+                      error={emailPasswordForm.formState.errors.password?.message}
+                    />
+                  )}
+                />
+
+                <Controller
+                  control={emailPasswordForm.control}
+                  name="confirmPassword"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      label="Confirm Password"
+                      placeholder="Re-enter your password"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      secureTextEntry
+                      error={emailPasswordForm.formState.errors.confirmPassword?.message}
+                    />
+                  )}
+                />
+
+                <Controller
+                  control={emailPasswordForm.control}
+                  name="agreeToTerms"
+                  render={({ field: { onChange, value } }) => (
+                    <TouchableOpacity
+                      style={styles.checkboxContainer}
+                      onPress={() => onChange(!value)}
+                    >
+                      <View style={[styles.checkbox, value && styles.checkboxChecked]}>
+                        {value && <Ionicons name="checkmark" size={16} color={Colors.surface} />}
+                      </View>
+                      <Text style={styles.checkboxLabel}>
+                        I agree to Terms & Conditions
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                />
+                {emailPasswordForm.formState.errors.agreeToTerms && (
+                  <Text style={styles.errorText}>{emailPasswordForm.formState.errors.agreeToTerms.message}</Text>
+                )}
+
+                <Button
+                  title="Create Account"
+                  onPress={emailPasswordForm.handleSubmit(onEmailPasswordRegister)}
+                  variant="primary"
+                  style={styles.createButton}
+                  loading={isLoading}
+                />
+
+                <View style={styles.signInContainer}>
+                  <Text style={styles.signInText}>Already have account? </Text>
+                  <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+                    <Text style={styles.signInLink}>Sign In</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : !otpSent ? (
               <>
                 <Controller
                   control={registerForm.control}
@@ -428,6 +614,32 @@ const styles = StyleSheet.create({
   signInLink: {
     ...Typography.body,
     color: Colors.primary,
+    fontWeight: '600',
+  },
+  authMethodToggle: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: Spacing.lg,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  toggleText: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  toggleTextActive: {
+    color: Colors.surface,
     fontWeight: '600',
   },
 });

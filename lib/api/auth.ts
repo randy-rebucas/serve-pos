@@ -4,8 +4,8 @@
  * Updated for OTP-based authentication
  */
 
-import { apiClient } from './client';
 import { Customer } from '../../types';
+import { apiClient } from './client';
 
 export interface SendOtpRequest {
   phone: string;
@@ -50,6 +50,21 @@ export interface LoginRequest {
 export interface LoginResponse {
   message: string;
   requiresOtpVerification: boolean;
+}
+
+export interface EmailPasswordLoginRequest {
+  email: string;
+  password: string;
+  tenantSlug: string;
+}
+
+export interface EmailPasswordRegisterRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  phone?: string;
+  tenantSlug: string;
 }
 
 /**
@@ -102,6 +117,20 @@ export async function register(data: RegisterRequest): Promise<RegisterResponse>
  */
 export async function verifyRegisterOtp(data: VerifyOtpRequest & { firstName?: string; lastName?: string; email?: string }): Promise<VerifyOtpResponse> {
   return apiClient.post<VerifyOtpResponse>('/api/customers/verify-register-otp', data, false);
+}
+
+/**
+ * Customer login with email and password
+ */
+export async function loginWithEmailPassword(data: EmailPasswordLoginRequest): Promise<VerifyOtpResponse> {
+  return apiClient.post<VerifyOtpResponse>('/api/auth/customer-login', data, false);
+}
+
+/**
+ * Customer registration with email and password
+ */
+export async function registerWithEmailPassword(data: EmailPasswordRegisterRequest): Promise<VerifyOtpResponse> {
+  return apiClient.post<VerifyOtpResponse>('/api/auth/customer-register', data, false);
 }
 
 /**

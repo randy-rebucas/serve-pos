@@ -10,7 +10,7 @@ import { Colors } from '../constants/Theme';
 import { useAuthStore } from '../stores/authStore';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { initialize, isAuthenticated, isLoading } = useAuthStore();
+  const { initialize, isAuthenticated, isGuest, isLoading } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
 
@@ -22,15 +22,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const hasAccess = isAuthenticated || isGuest;
 
-    if (!isAuthenticated && !inAuthGroup) {
-      // Redirect to login if not authenticated
+    if (!hasAccess && !inAuthGroup) {
+      // Redirect to login if not authenticated and not in guest mode
       router.replace('/(auth)/login' as any);
-    } else if (isAuthenticated && inAuthGroup) {
-      // Redirect to home if authenticated
+    } else if (hasAccess && inAuthGroup) {
+      // Redirect to home if authenticated or in guest mode
       router.replace('/(tabs)' as any);
     }
-  }, [isAuthenticated, isLoading, segments]);
+  }, [isAuthenticated, isGuest, isLoading, segments]);
 
   if (isLoading) {
     return (

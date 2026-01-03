@@ -56,7 +56,9 @@ npm install
 
 ### 2. Configure Environment Variables
 
-Create a `.env` file in the root directory:
+#### Local Development
+
+Create a `.env` file in the root directory (copy from `.env.example`):
 
 ```bash
 EXPO_PUBLIC_API_URL=http://your-api-url/api
@@ -68,6 +70,10 @@ EXPO_PUBLIC_TENANT_SLUG=default
 - Example: `EXPO_PUBLIC_API_URL=http://192.168.1.100:3000/api`
 - For Android emulator, you can use `http://10.0.2.2:3000/api`
 - Restart the Expo dev server after changing `.env` file
+
+#### EAS Builds (Production)
+
+For production builds with EAS, environment variables are managed securely using EAS Secrets. See [EAS_ENV_SETUP.md](./EAS_ENV_SETUP.md) for detailed instructions on setting up secrets for different build profiles (development, preview, production).
 
 ### 3. Start the Development Server
 
@@ -214,6 +220,7 @@ See [API_ENDPOINTS_COMPLETE.md](./API_ENDPOINTS_COMPLETE.md) for full API docume
 - [MOBILE_APP_QUICK_REFERENCE.md](./MOBILE_APP_QUICK_REFERENCE.md) - Quick reference guide for developers
 - [MOBILE_APP_LAYOUTS.md](./MOBILE_APP_LAYOUTS.md) - UI/UX layouts and designs
 - [API_ENDPOINTS_COMPLETE.md](./API_ENDPOINTS_COMPLETE.md) - API endpoint documentation
+- [EAS_ENV_SETUP.md](./EAS_ENV_SETUP.md) - Environment variables setup for EAS builds
 
 ## Troubleshooting
 
@@ -238,16 +245,26 @@ See [API_ENDPOINTS_COMPLETE.md](./API_ENDPOINTS_COMPLETE.md) for full API docume
 
 ## Building for Production
 
+### Prerequisites
+
+Before building, ensure you've set up EAS Secrets for your environment variables:
+
+```bash
+# See EAS_ENV_SETUP.md for detailed instructions
+eas secret:create --scope project --name EXPO_PUBLIC_API_URL --value "https://api.example.com/api" --type string --environment production
+eas secret:create --scope project --name EXPO_PUBLIC_TENANT_SLUG --value "production-tenant" --type string --environment production
+```
+
 ### iOS
 
 ```bash
-eas build --platform ios
+eas build --platform ios --profile production
 ```
 
 ### Android
 
 ```bash
-eas build --platform android
+eas build --platform android --profile production
 ```
 
 ### Submit to Stores
@@ -259,6 +276,8 @@ eas submit --platform ios
 # Google Play Store
 eas submit --platform android
 ```
+
+**Note**: Environment variables are automatically injected from EAS Secrets during the build process. No need to manually configure them in the build command.
 
 ## Contributing
 

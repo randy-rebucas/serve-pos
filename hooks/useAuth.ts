@@ -4,24 +4,28 @@
  * Updated for OTP-based authentication
  */
 
-import { useAuthStore } from '../stores/authStore';
-import {
-  sendLoginOtp,
-  sendRegisterOtp,
-  verifyLoginOtp,
-  verifyRegisterOtp,
-  register as apiRegister,
-  logout as apiLogout,
-  LoginRequest,
-  RegisterRequest,
-  VerifyOtpRequest,
-} from '../lib/api/auth';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import {
+  logout as apiLogout,
+  register as apiRegister,
+  EmailPasswordLoginRequest,
+  EmailPasswordRegisterRequest,
+  LoginRequest,
+  loginWithEmailPassword,
+  RegisterRequest,
+  registerWithEmailPassword,
+  sendCustomerOtp,
+  SendOtpRequest,
+  verifyCustomerOtp,
+  VerifyOtpRequest,
+  verifyRegisterOtp,
+} from '../lib/api/auth';
+import { useAuthStore } from '../stores/authStore';
 
 export function useAuth() {
   const router = useRouter();
-  const { user, token, isAuthenticated, isLoading, setUser, setToken, logout: storeLogout, initialize } = useAuthStore();
+  const { user, token, isAuthenticated, isGuest, isLoading, setUser, setToken, setGuestMode, logout: storeLogout, initialize } = useAuthStore();
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
@@ -34,7 +38,7 @@ export function useAuth() {
       setIsLoadingAuth(true);
       setError(null);
       
-      const response = await sendLoginOtp(data);
+      const response = await sendCustomerOtp(data);
       setOtpSent(true);
       
       return response;
@@ -55,7 +59,7 @@ export function useAuth() {
       setIsLoadingAuth(true);
       setError(null);
       
-      const response = await verifyLoginOtp(data);
+      const response = await verifyCustomerOtp(data);
       
       await setToken(response.token);
       setUser(response.user);
@@ -77,12 +81,12 @@ export function useAuth() {
   /**
    * Send OTP for registration
    */
-  const sendRegisterOtpCode = async (data: { phone: string; tenantSlug: string }) => {
+  const sendRegisterOtpCode = async (data: SendOtpRequest) => {
     try {
       setIsLoadingAuth(true);
       setError(null);
       
-      const response = await sendRegisterOtp(data);
+      const response = await sendCustomerOtp(data);
       setOtpSent(true);
       
       return response;
@@ -147,10 +151,73 @@ export function useAuth() {
     }
   };
 
+  /**
+   * Login with email and password
+   */
+  const loginWithEmail = async (data: EmailPasswordLoginRequest) => {
+    try {
+      setIsLoadingAuth(true);
+      setError(null);
+      
+      const response = await loginWithEmailPassword(data);
+      
+      await setToken(response.token);
+      setUser(response.user);
+      
+      // Navigate to home
+      router.replace('/(tabs)');
+      
+      return response;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Login failed. Please check your credentials.';
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoadingAuth(false);
+    }
+  };
+
+  /**
+   * Register with email and password
+   */
+  const registerWithEmail = async (data: EmailPasswordRegisterRequest) => {
+    try {
+      setIsLoadingAuth(true);
+      setError(null);
+      
+      const response = await registerWithEmailPassword(data);
+      
+      await setToken(response.token);
+      setUser(response.user);
+      
+      // Navigate to home
+      router.replace('/(tabs)');
+      
+      return response;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoadingAuth(false);
+    }
+  };
+
+  /**
+   * Enter guest mode
+   */
+  const enterGuestMode = () => {
+    setGuestMode();
+    router.replace('/(tabs)');
+  };
+
   const logout = async () => {
     try {
       setIsLoadingAuth(true);
-      await apiLogout();
+      // Only call API logout if authenticated (not guest)
+      if (isAuthenticated && token) {
+        await apiLogout();
+      }
     } catch (err) {
       console.error('Logout API error:', err);
       // Continue with local logout even if API fails
@@ -166,6 +233,7 @@ export function useAuth() {
     user,
     token,
     isAuthenticated,
+    isGuest,
     isLoading: isLoading || isLoadingAuth,
     otpSent,
     sendLoginOtp: sendLoginOtpCode,
@@ -173,6 +241,9 @@ export function useAuth() {
     sendRegisterOtp: sendRegisterOtpCode,
     register,
     verifyRegisterOtp: verifyRegisterOtpCode,
+    loginWithEmail,
+    registerWithEmail,
+    enterGuestMode,
     logout,
     initialize,
     error,

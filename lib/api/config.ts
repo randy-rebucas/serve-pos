@@ -3,8 +3,43 @@
  * Based on MOBILE_APP_SPECS.md
  */
 
+import Constants from 'expo-constants';
+
+/**
+ * Get environment variable value
+ * Works in both development (process.env) and production (Constants.expoConfig.extra)
+ */
+function getEnvVar(key: string, fallback: string = ''): string {
+  // In development, use process.env
+  if (__DEV__ && process.env[key]) {
+    return process.env[key] || fallback;
+  }
+  
+  // In production builds, use Constants.expoConfig.extra
+  // EAS will inject these values during build
+  const extra = Constants.expoConfig?.extra;
+  if (extra) {
+    // Map EXPO_PUBLIC_* to camelCase keys in extra
+    const camelKey = key.replace('EXPO_PUBLIC_', '').toLowerCase()
+      .replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    
+    // Try camelCase first (apiUrl, tenantSlug)
+    if (extra[camelKey]) {
+      return extra[camelKey] as string;
+    }
+    
+    // Fallback to original key
+    if (extra[key]) {
+      return extra[key] as string;
+    }
+  }
+  
+  return fallback;
+}
+
 export const API_CONFIG = {
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000',
+  BASE_URL: getEnvVar('EXPO_PUBLIC_API_URL', 'http://localhost:3000'),
+  TENANT_SLUG: getEnvVar('EXPO_PUBLIC_TENANT_SLUG', 'default'),
   TIMEOUT: 30000,
   HEADERS: {
     'Content-Type': 'application/json',
@@ -17,6 +52,13 @@ export const API_CONFIG = {
  */
 export function getApiBaseUrl(): string {
   return API_CONFIG.BASE_URL;
+}
+
+/**
+ * Get tenant slug
+ */
+export function getTenantSlug(): string {
+  return API_CONFIG.TENANT_SLUG;
 }
 
 /**

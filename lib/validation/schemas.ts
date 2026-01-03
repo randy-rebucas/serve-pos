@@ -107,3 +107,35 @@ export const profileUpdateSchema = z.object({
 });
 
 export type ProfileUpdateFormData = z.infer<typeof profileUpdateSchema>;
+
+/**
+ * Email/password login schema
+ */
+export const emailPasswordLoginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  tenantSlug: z.string().min(1, 'Tenant slug is required'),
+});
+
+export type EmailPasswordLoginFormData = z.infer<typeof emailPasswordLoginSchema>;
+
+/**
+ * Email/password registration schema
+ */
+export const emailPasswordRegisterSchema = z.object({
+  firstName: z.string().min(2, 'First name must be at least 2 characters'),
+  lastName: z.string().min(2, 'Last name must be at least 2 characters'),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  confirmPassword: z.string().min(6, 'Please confirm your password'),
+  phone: z.string().optional(),
+  tenantSlug: z.string().min(1, 'Tenant slug is required'),
+  agreeToTerms: z.boolean().refine((val) => val === true, {
+    message: 'You must agree to the terms and conditions',
+  }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+});
+
+export type EmailPasswordRegisterFormData = z.infer<typeof emailPasswordRegisterSchema>;

@@ -11,9 +11,11 @@ interface AuthState {
   user: Customer | null;
   token: string | null;
   isAuthenticated: boolean;
+  isGuest: boolean;
   isLoading: boolean;
   setUser: (user: Customer) => void;
   setToken: (token: string) => Promise<void>;
+  setGuestMode: () => void;
   logout: () => Promise<void>;
   initialize: () => Promise<void>;
 }
@@ -22,10 +24,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   isAuthenticated: false,
+  isGuest: false,
   isLoading: true,
 
   setUser: (user: Customer) => {
-    set({ user, isAuthenticated: true });
+    set({ user, isAuthenticated: true, isGuest: false });
     // Save user data to secure storage
     saveUserData(JSON.stringify(user)).catch(console.error);
   },
@@ -35,9 +38,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ token });
   },
 
+  setGuestMode: () => {
+    set({ isGuest: true, isAuthenticated: false, user: null, token: null });
+  },
+
   logout: async () => {
     await removeToken();
-    set({ user: null, token: null, isAuthenticated: false });
+    set({ user: null, token: null, isAuthenticated: false, isGuest: false });
   },
 
   initialize: async () => {
